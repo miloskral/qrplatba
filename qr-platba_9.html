@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="QR Platba">
+<title>QR Platba</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+.screen{display:none}.screen.active{display:block}
+.nav{background:rgba(242,242,247,.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:12px 20px 10px;padding-top:calc(12px + env(safe-area-inset-top));border-bottom:.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.nav-title{font-size:17px;font-weight:600;color:#1c1c1e}
+.nav-btn{font-size:16px;color:#007aff;background:none;border:none;padding:4px 0;cursor:pointer;font-family:inherit}
+.nav-btn.fw{font-weight:600}
+.content{padding:24px 20px}
+.section{margin-bottom:28px}
+.slabel{font-size:13px;color:#6d6d72;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-left:4px}
+.group{background:#fff;border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;padding:0 16px;min-height:48px;border-bottom:.5px solid rgba(0,0,0,.1);gap:12px}
+.row:last-child{border-bottom:none}
+.rlabel{font-size:16px;color:#1c1c1e;min-width:130px;flex-shrink:0}
+.rinput{flex:1;border:none;outline:none;font-size:16px;font-family:inherit;color:#1c1c1e;background:transparent;text-align:right;padding:12px 0;min-width:0}
+.rinput::placeholder{color:#c7c7cc}
+.amtbox{background:#fff;border-radius:12px;padding:16px 20px;display:flex;align-items:baseline;gap:8px}
+.amtcur{font-size:36px;font-weight:300;color:#8e8e93}
+.amtinp{flex:1;border:none;outline:none;font-size:48px;font-weight:300;font-family:inherit;color:#1c1c1e;background:transparent;min-width:0;width:100%}
+.amtinp::placeholder{color:#c7c7cc}
+.btnp{width:100%;background:#007aff;color:#fff;font-size:17px;font-weight:600;font-family:inherit;border:none;border-radius:12px;padding:16px;cursor:pointer;transition:opacity .15s}
+.btnp:active{opacity:.75}
+.btnp:disabled{opacity:.45;cursor:default}
+.pill{background:#fff;border-radius:12px;padding:14px 16px;font-size:14px;color:#6d6d72;line-height:1.6}
+.pill.set{color:#1c1c1e}
+.pname{font-weight:600;font-size:15px;color:#1c1c1e}
+.piban{font-size:13px;color:#8e8e93;margin-top:1px}
+.pvs{font-size:13px;color:#8e8e93}
+.qrcard{background:#fff;border-radius:16px;padding:32px 20px 28px;text-align:center;margin-top:24px}
+.qrcard img{border-radius:8px;max-width:260px;width:100%;display:block;margin:0 auto}
+.qramt{font-size:32px;font-weight:300;color:#1c1c1e;margin-top:16px}
+.qrnote{font-size:14px;color:#8e8e93;margin-top:4px}
+.spin{display:inline-block;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:calc(36px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(12px);background:rgba(40,40,40,.93);color:#fff;font-size:14px;font-weight:500;padding:10px 22px;border-radius:22px;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none;z-index:100;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(prefers-color-scheme:dark){
+  body{background:#000;color:#fff}
+  .nav{background:rgba(28,28,30,.96);border-bottom-color:rgba(255,255,255,.12)}
+  .nav-title,.rlabel,.rinput,.amtinp,.pname,.qramt{color:#fff}
+  .group,.amtbox,.pill,.qrcard{background:#1c1c1e}
+  .row{border-bottom-color:rgba(255,255,255,.08)}
+  .btnp{background:#0a84ff}
+  .nav-btn{color:#0a84ff}
+  .amtcur{color:#636366}
+  .slabel,.piban,.pvs,.qrnote{color:#8e8e93}
+  .pill{color:#8e8e93}
+}
+</style>
+</head>
+<body>
+
+<div id="smain" class="screen active">
+  <div class="nav">
+    <span class="nav-title">QR Platba</span>
+    <button class="nav-btn fw" id="btnSet">Nastavenia</button>
+  </div>
+  <div class="content">
+    <div class="section">
+      <div class="slabel">Príjemca</div>
+      <div class="pill" id="pill">Účet nie je nastavený — otvorte Nastavenia</div>
+    </div>
+    <div class="section">
+      <div class="slabel">Suma</div>
+      <div class="amtbox">
+        <span class="amtcur">€</span>
+        <input class="amtinp" id="iAmt" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="section">
+      <div class="slabel">Poznámka</div>
+      <div class="group">
+        <div class="row">
+          <input class="rinput" id="iNote" type="text" placeholder="Faktúra č. 001" style="text-align:left">
+        </div>
+      </div>
+    </div>
+    <button class="btnp" id="btnGen">Generovať QR kód</button>
+    <div id="qrarea" style="display:none">
+      <div class="qrcard">
+        <img id="qrimg" src="" alt="QR kód platby">
+        <div class="qramt" id="qramt"></div>
+        <div class="qrnote" id="qrnote"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sset" class="screen">
+  <div class="nav">
+    <button class="nav-btn" id="btnBack">← Späť</button>
+    <span class="nav-title">Nastavenia</span>
+    <button class="nav-btn fw" id="btnSave1">Uložiť</button>
+  </div>
+  <div class="content">
+    <div class="section">
+      <div class="slabel">Bankový účet</div>
+      <div class="group">
+        <div class="row"><span class="rlabel">IBAN</span><input class="rinput" id="sIban" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="SK12 1234 0000 …"></div>
+        <div class="row"><span class="rlabel">Meno príjemcu</span><input class="rinput" id="sName" type="text" autocorrect="off" placeholder="Ján Novák"></div>
+        <div class="row"><span class="rlabel">SWIFT / BIC</span><input class="rinput" id="sBic" type="text" autocapitalize="characters" autocorrect="off" placeholder="TATRSKBX"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="slabel">Platobné symboly</div>
+      <div class="group">
+        <div class="row"><span class="rlabel">Variabilný symbol</span><input class="rinput" id="sVs" type="text" inputmode="numeric" autocorrect="off" placeholder="20240101"></div>
+        <div class="row"><span class="rlabel">Konštantný symbol</span><input class="rinput" id="sKs" type="text" inputmode="numeric" autocorrect="off" placeholder="0308"></div>
+      </div>
+    </div>
+    <div style="margin-top:32px">
+      <button class="btnp" id="btnSave2">Uložiť nastavenia</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Worker URL — nasadený na Cloudflare
+var WORKER_URL = 'https://worker-sparkling-rice-cd6b.kralmilos.workers.dev';
+
+var KEY = 'qrp_final';
+function cfg(){ try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return{};} }
+function saveCfg(o){ try{localStorage.setItem(KEY,JSON.stringify(o));}catch(e){} }
+
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  setTimeout(function(){t.classList.remove('on');},2400);
+}
+function go(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function fiban(s){return(s||'').replace(/\s/g,'').toUpperCase().replace(/(.{4})/g,'$1 ').trim();}
+
+function refreshPill(){
+  var s=cfg(), el=document.getElementById('pill');
+  if(s.iban){
+    el.classList.add('set');
+    var h='';
+    if(s.name) h+='<div class="pname">'+esc(s.name)+'</div>';
+    h+='<div class="piban">'+esc(fiban(s.iban))+'</div>';
+    if(s.vs) h+='<div class="pvs">VS: '+esc(s.vs)+(s.ks?' · KS: '+esc(s.ks):'')+'</div>';
+    el.innerHTML=h;
+  } else {
+    el.classList.remove('set');
+    el.textContent='Účet nie je nastavený — otvorte Nastavenia';
+  }
+}
+
+document.getElementById('btnSet').onclick=function(){
+  var s=cfg();
+  document.getElementById('sIban').value=s.iban||'';
+  document.getElementById('sName').value=s.name||'';
+  document.getElementById('sBic').value=s.bic||'';
+  document.getElementById('sVs').value=s.vs||'';
+  document.getElementById('sKs').value=s.ks||'';
+  go('sset');
+};
+document.getElementById('btnBack').onclick=function(){go('smain');};
+
+function doSave(){
+  var iban=document.getElementById('sIban').value.replace(/\s/g,'').toUpperCase();
+  if(!iban){toast('Zadajte IBAN');return;}
+  if(iban.length<15){toast('IBAN je príliš krátky');return;}
+  saveCfg({
+    iban:iban,
+    name:document.getElementById('sName').value.trim(),
+    bic:document.getElementById('sBic').value.trim().toUpperCase(),
+    vs:document.getElementById('sVs').value.trim(),
+    ks:document.getElementById('sKs').value.trim()
+  });
+  toast('Uložené ✓');
+  setTimeout(function(){go('smain');refreshPill();},600);
+}
+document.getElementById('btnSave1').onclick=doSave;
+document.getElementById('btnSave2').onclick=doSave;
+
+document.getElementById('btnGen').onclick=function(){
+  var s=cfg();
+  if(!s.iban){toast('Najprv nastavte účet');return;}
+  var amt=document.getElementById('iAmt').value;
+  if(!amt||parseFloat(amt)<=0){toast('Zadajte sumu');return;}
+  var note=document.getElementById('iNote').value.trim();
+
+  var btn=document.getElementById('btnGen');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin"></span>Generujem…';
+
+  var params=new URLSearchParams();
+  params.set('iban', s.iban);
+  params.set('amount', parseFloat(amt).toFixed(2));
+  if(s.vs) params.set('vs', s.vs);
+  if(s.ks) params.set('ks', s.ks);
+  if(note) params.set('note', note);
+  if(s.bic) params.set('bic', s.bic);
+
+  fetch(WORKER_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: params.toString()
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    btn.disabled=false; btn.textContent='Generovať QR kód';
+    if(d.error){toast('Chyba: '+d.error);return;}
+    if(!d.src){toast('Nepodarilo sa získať QR kód');return;}
+    document.getElementById('qrimg').src=d.src;
+    document.getElementById('qramt').textContent=parseFloat(amt).toFixed(2)+' €';
+    document.getElementById('qrnote').textContent=note;
+    document.getElementById('qrarea').style.display='block';
+    setTimeout(function(){
+      document.getElementById('qrarea').scrollIntoView({behavior:'smooth',block:'start'});
+    },100);
+  })
+  .catch(function(e){
+    btn.disabled=false; btn.textContent='Generovať QR kód';
+    toast('Chyba: '+e.message);
+  });
+};
+
+refreshPill();
+</script>
+</body>
+</html>
