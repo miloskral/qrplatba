@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="QR Platba">
+<title>QR Platba</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+.screen{display:none}.screen.active{display:block}
+.nav{background:rgba(242,242,247,.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:12px 20px 10px;padding-top:calc(12px + env(safe-area-inset-top));border-bottom:.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.nav-title{font-size:17px;font-weight:600;color:#1c1c1e}
+.nav-btn{font-size:16px;color:#007aff;background:none;border:none;padding:4px 0;cursor:pointer;font-family:inherit}
+.nav-btn.fw{font-weight:600}
+.content{padding:24px 20px}
+.section{margin-bottom:28px}
+.slabel{font-size:13px;color:#6d6d72;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-left:4px}
+.group{background:#fff;border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;padding:0 16px;min-height:48px;border-bottom:.5px solid rgba(0,0,0,.1);gap:12px}
+.row:last-child{border-bottom:none}
+.rlabel{font-size:16px;color:#1c1c1e;min-width:130px;flex-shrink:0}
+.rinput{flex:1;border:none;outline:none;font-size:16px;font-family:inherit;color:#1c1c1e;background:transparent;text-align:right;padding:12px 0;min-width:0}
+.rinput::placeholder{color:#c7c7cc}
+.amtbox{background:#fff;border-radius:12px;padding:16px 20px;display:flex;align-items:baseline;gap:8px}
+.amtcur{font-size:36px;font-weight:300;color:#8e8e93}
+.amtinp{flex:1;border:none;outline:none;font-size:48px;font-weight:300;font-family:inherit;color:#1c1c1e;background:transparent;min-width:0;width:100%}
+.amtinp::placeholder{color:#c7c7cc}
+.btnp{width:100%;background:#007aff;color:#fff;font-size:17px;font-weight:600;font-family:inherit;border:none;border-radius:12px;padding:16px;cursor:pointer;transition:opacity .15s}
+.btnp:active{opacity:.75}
+.btnp:disabled{opacity:.45;cursor:default}
+.pill{background:#fff;border-radius:12px;padding:14px 16px;font-size:14px;color:#6d6d72;line-height:1.6}
+.pill.set{color:#1c1c1e}
+.pname{font-weight:600;font-size:15px;color:#1c1c1e}
+.piban{font-size:13px;color:#8e8e93;margin-top:1px}
+.pvs{font-size:13px;color:#8e8e93}
+.qrcard{background:#fff;border-radius:16px;padding:32px 20px 28px;text-align:center;margin-top:24px}
+.qrcard img{border-radius:8px;max-width:260px;width:100%;display:block;margin:0 auto}
+.qramt{font-size:32px;font-weight:300;color:#1c1c1e;margin-top:16px}
+.qrnote{font-size:14px;color:#8e8e93;margin-top:4px}
+.spin{display:inline-block;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:calc(36px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(12px);background:rgba(40,40,40,.93);color:#fff;font-size:14px;font-weight:500;padding:10px 22px;border-radius:22px;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none;z-index:100;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.footer{text-align:center;padding:32px 20px calc(24px + env(safe-area-inset-bottom));color:#8e8e93;font-size:12px;line-height:1.6}
+.footer .fname{font-weight:500;color:#6d6d72;margin-top:2px}
+@media(prefers-color-scheme:dark){.footer .fname{color:#8e8e93}}
+
+/* Switch (iOS-style) */
+.switch{position:relative;display:inline-block;width:51px;height:31px;flex-shrink:0;margin-left:auto}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#e9e9eb;border-radius:34px;transition:.25s}
+.slider:before{position:absolute;content:"";height:27px;width:27px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 2px 4px rgba(0,0,0,.18)}
+.switch input:checked + .slider{background:#34c759}
+.switch input:checked + .slider:before{transform:translateX(20px)}
+.row.tap{cursor:pointer}
+.row.tap:active{background:rgba(0,0,0,.04)}
+.chev{margin-left:auto;color:#c7c7cc;font-size:18px}
+
+/* PIN screen */
+.pinwrap{padding:60px 20px 32px;text-align:center}
+.pintitle{font-size:22px;font-weight:600;color:#1c1c1e;margin-bottom:8px}
+.pinsub{font-size:15px;color:#8e8e93;margin-bottom:36px}
+.pindots{display:flex;justify-content:center;gap:18px;margin-bottom:40px;height:18px}
+.pindot{width:16px;height:16px;border-radius:50%;border:1.5px solid #8e8e93;background:transparent;transition:.15s}
+.pindot.fill{background:#1c1c1e;border-color:#1c1c1e}
+.pindots.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-7px)}80%{transform:translateX(7px)}}
+.pinerr{color:#ff3b30;font-size:14px;height:18px;margin-top:-22px;margin-bottom:18px;opacity:0;transition:opacity .2s;text-align:center}
+.pinerr.on{opacity:1}
+.keypad{max-width:280px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.keybtn{aspect-ratio:1;background:rgba(120,120,128,.16);border:none;border-radius:50%;font-size:28px;font-weight:400;font-family:inherit;color:#1c1c1e;cursor:pointer;transition:background .12s;-webkit-user-select:none;user-select:none}
+.keybtn:active{background:rgba(120,120,128,.32)}
+.keybtn.fn{background:transparent;font-size:15px;color:#007aff}
+.keybtn.fn:active{background:rgba(120,120,128,.16)}
+.keybtn.empty{visibility:hidden;pointer-events:none}
+
+@media(prefers-color-scheme:dark){
+  body{background:#000;color:#fff}
+  .nav{background:rgba(28,28,30,.96);border-bottom-color:rgba(255,255,255,.12)}
+  .nav-title,.rlabel,.rinput,.amtinp,.pname,.qramt,.pintitle{color:#fff}
+  .group,.amtbox,.pill,.qrcard{background:#1c1c1e}
+  .row{border-bottom-color:rgba(255,255,255,.08)}
+  .btnp{background:#0a84ff}
+  .nav-btn{color:#0a84ff}
+  .amtcur{color:#636366}
+  .slabel,.piban,.pvs,.qrnote,.pinsub{color:#8e8e93}
+  .pill{color:#8e8e93}
+  .slider{background:#39393d}
+  .keybtn{background:rgba(118,118,128,.24);color:#fff}
+  .keybtn:active{background:rgba(118,118,128,.4)}
+  .keybtn.fn{background:transparent;color:#0a84ff}
+  .pindot{border-color:#8e8e93}
+  .pindot.fill{background:#fff;border-color:#fff}
+  .row.tap:active{background:rgba(255,255,255,.06)}
+}
+</style>
+</head>
+<body>
+
+<div id="smain" class="screen active">
+  <div class="nav">
+    <span class="nav-title">QR Platba</span>
+    <button class="nav-btn fw" id="btnSet">Nastavenia</button>
+  </div>
+  <div class="content">
+    <div class="section">
+      <div class="slabel">Príjemca</div>
+      <div class="pill" id="pill">Účet nie je nastavený — otvorte Nastavenia</div>
+    </div>
+    <div class="section">
+      <div class="slabel">Suma</div>
+      <div class="amtbox">
+        <span class="amtcur">€</span>
+        <input class="amtinp" id="iAmt" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="section">
+      <div class="slabel">Poznámka</div>
+      <div class="group">
+        <div class="row">
+          <input class="rinput" id="iNote" type="text" placeholder="Faktúra č. 001" style="text-align:left">
+        </div>
+      </div>
+    </div>
+    <button class="btnp" id="btnGen">Generovať QR kód</button>
+    <div id="qrarea" style="display:none">
+      <div class="qrcard">
+        <img id="qrimg" src="" alt="QR kód platby">
+        <div class="qramt" id="qramt"></div>
+        <div class="qrnote" id="qrnote"></div>
+      </div>
+    </div>
+    <div class="footer">
+      Verzia 1.0.1
+      <div class="fname">Miloš Kráľ</div>
+    </div>
+  </div>
+</div>
+
+<div id="sset" class="screen">
+  <div class="nav">
+    <button class="nav-btn" id="btnBack">← Späť</button>
+    <span class="nav-title">Nastavenia</span>
+    <button class="nav-btn fw" id="btnSave1">Uložiť</button>
+  </div>
+  <div class="content">
+    <div class="section">
+      <div class="slabel">Bankový účet</div>
+      <div class="group">
+        <div class="row"><span class="rlabel">IBAN</span><input class="rinput" id="sIban" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="SK12 1234 0000 …"></div>
+        <div class="row"><span class="rlabel">Meno príjemcu</span><input class="rinput" id="sName" type="text" autocorrect="off" placeholder="Ján Novák"></div>
+        <div class="row"><span class="rlabel">SWIFT / BIC</span><input class="rinput" id="sBic" type="text" autocapitalize="characters" autocorrect="off" placeholder="TATRSKBX"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="slabel">Platobné symboly</div>
+      <div class="group">
+        <div class="row"><span class="rlabel">Variabilný symbol</span><input class="rinput" id="sVs" type="text" inputmode="numeric" autocorrect="off" placeholder="20240101"></div>
+        <div class="row"><span class="rlabel">Konštantný symbol</span><input class="rinput" id="sKs" type="text" inputmode="numeric" autocorrect="off" placeholder="0308"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="slabel">Zabezpečenie</div>
+      <div class="group">
+        <div class="row">
+          <span class="rlabel" style="min-width:0;flex:1">Uzamknúť PIN kódom</span>
+          <label class="switch">
+            <input type="checkbox" id="sLock">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="row tap" id="rowChangePin" style="display:none">
+          <span class="rlabel" style="min-width:0;flex:1;color:#007aff">Zmeniť PIN</span>
+          <span class="chev">›</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:32px">
+      <button class="btnp" id="btnSave2">Uložiť nastavenia</button>
+    </div>
+  </div>
+</div>
+
+<!-- PIN screen -->
+<div id="spin" class="screen">
+  <div class="nav">
+    <button class="nav-btn" id="btnPinCancel">Zrušiť</button>
+    <span class="nav-title">PIN kód</span>
+    <span style="width:48px"></span>
+  </div>
+  <div class="pinwrap">
+    <div class="pintitle" id="pinTitle">Zadajte PIN</div>
+    <div class="pinsub" id="pinSub">4-miestny kód</div>
+    <div class="pindots" id="pinDots">
+      <div class="pindot"></div>
+      <div class="pindot"></div>
+      <div class="pindot"></div>
+      <div class="pindot"></div>
+    </div>
+    <div class="pinerr" id="pinErr">Nesprávny PIN</div>
+    <div class="keypad" id="keypad">
+      <button class="keybtn" data-k="1">1</button>
+      <button class="keybtn" data-k="2">2</button>
+      <button class="keybtn" data-k="3">3</button>
+      <button class="keybtn" data-k="4">4</button>
+      <button class="keybtn" data-k="5">5</button>
+      <button class="keybtn" data-k="6">6</button>
+      <button class="keybtn" data-k="7">7</button>
+      <button class="keybtn" data-k="8">8</button>
+      <button class="keybtn" data-k="9">9</button>
+      <button class="keybtn empty"></button>
+      <button class="keybtn" data-k="0">0</button>
+      <button class="keybtn fn" data-k="del">Zmazať</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Worker URL — nasadený na Cloudflare
+var WORKER_URL = 'https://worker-sparkling-rice-cd6b.kralmilos.workers.dev';
+
+var KEY = 'qrp_final';
+var PINKEY = 'qrp_pin'; // { hash: string }  PIN je hashovaný SHA-256, neukladá sa v plaintexte
+function cfg(){ try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return{};} }
+function saveCfg(o){ try{localStorage.setItem(KEY,JSON.stringify(o));}catch(e){} }
+function pinCfg(){ try{return JSON.parse(localStorage.getItem(PINKEY))||null;}catch(e){return null;} }
+function savePinCfg(o){ try{ if(o===null) localStorage.removeItem(PINKEY); else localStorage.setItem(PINKEY,JSON.stringify(o));}catch(e){} }
+function pinEnabled(){ var p=pinCfg(); return !!(p && p.hash); }
+
+// SHA-256 hash (Web Crypto)
+async function sha256(str){
+  var enc = new TextEncoder().encode(str);
+  var buf = await crypto.subtle.digest('SHA-256', enc);
+  var arr = Array.from(new Uint8Array(buf));
+  return arr.map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  setTimeout(function(){t.classList.remove('on');},2400);
+}
+function go(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function fiban(s){return(s||'').replace(/\s/g,'').toUpperCase().replace(/(.{4})/g,'$1 ').trim();}
+
+function refreshPill(){
+  var s=cfg(), el=document.getElementById('pill');
+  if(s.iban){
+    el.classList.add('set');
+    var h='';
+    if(s.name) h+='<div class="pname">'+esc(s.name)+'</div>';
+    h+='<div class="piban">'+esc(fiban(s.iban))+'</div>';
+    if(s.vs) h+='<div class="pvs">VS: '+esc(s.vs)+(s.ks?' · KS: '+esc(s.ks):'')+'</div>';
+    el.innerHTML=h;
+  } else {
+    el.classList.remove('set');
+    el.textContent='Účet nie je nastavený — otvorte Nastavenia';
+  }
+}
+
+// ===== PIN modul =====
+// Stavy: 'unlock' | 'set1' | 'set2' | 'verify' | 'change1' | 'change2'
+var pinState = { mode:null, buf:'', step1:'', onCancel:null, onSuccess:null };
+
+function setPinTitle(title, sub){
+  document.getElementById('pinTitle').textContent = title;
+  document.getElementById('pinSub').textContent = sub || '';
+}
+function renderPinDots(){
+  var dots = document.querySelectorAll('#pinDots .pindot');
+  for(var i=0;i<4;i++){
+    dots[i].classList.toggle('fill', i < pinState.buf.length);
+  }
+}
+function shakeDots(){
+  var d = document.getElementById('pinDots');
+  d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake');
+}
+function showPinErr(msg){
+  var e = document.getElementById('pinErr');
+  e.textContent = msg;
+  e.classList.add('on');
+  setTimeout(function(){ e.classList.remove('on'); }, 1800);
+}
+
+function openPin(mode, opts){
+  opts = opts || {};
+  pinState.mode = mode;
+  pinState.buf = '';
+  pinState.step1 = '';
+  pinState.onCancel = opts.onCancel || null;
+  pinState.onSuccess = opts.onSuccess || null;
+
+  document.getElementById('pinErr').classList.remove('on');
+  renderPinDots();
+
+  if(mode==='unlock'){
+    setPinTitle('Zadajte PIN', 'Pre prístup k nastaveniam');
+  } else if(mode==='set1'){
+    setPinTitle('Nastavte nový PIN', '4-miestny kód');
+  } else if(mode==='set2'){
+    setPinTitle('Potvrďte PIN', 'Zadajte ho ešte raz');
+  } else if(mode==='verify'){
+    setPinTitle('Zadajte aktuálny PIN', '');
+  } else if(mode==='change1'){
+    setPinTitle('Nový PIN', '4-miestny kód');
+  } else if(mode==='change2'){
+    setPinTitle('Potvrďte nový PIN', 'Zadajte ho ešte raz');
+  }
+  go('spin');
+}
+
+function pinPress(k){
+  if(k==='del'){
+    pinState.buf = pinState.buf.slice(0,-1);
+    renderPinDots();
+    return;
+  }
+  if(pinState.buf.length>=4) return;
+  pinState.buf += k;
+  renderPinDots();
+  if(pinState.buf.length===4){
+    setTimeout(handlePinComplete, 120);
+  }
+}
+
+async function handlePinComplete(){
+  var entered = pinState.buf;
+  var mode = pinState.mode;
+
+  if(mode==='unlock' || mode==='verify'){
+    var stored = pinCfg();
+    var h = await sha256(entered);
+    if(stored && stored.hash === h){
+      var cb = pinState.onSuccess;
+      pinState.onSuccess = null;
+      if(cb) cb();
+    } else {
+      pinState.buf='';
+      renderPinDots();
+      shakeDots();
+      showPinErr('Nesprávny PIN');
+    }
+    return;
+  }
+
+  if(mode==='set1' || mode==='change1'){
+    pinState.step1 = entered;
+    pinState.buf = '';
+    renderPinDots();
+    pinState.mode = (mode==='set1') ? 'set2' : 'change2';
+    setPinTitle('Potvrďte PIN', 'Zadajte ho ešte raz');
+    return;
+  }
+
+  if(mode==='set2' || mode==='change2'){
+    if(entered === pinState.step1){
+      var hash = await sha256(entered);
+      savePinCfg({ hash: hash });
+      var cb2 = pinState.onSuccess;
+      pinState.onSuccess = null;
+      if(cb2) cb2();
+    } else {
+      pinState.buf=''; pinState.step1='';
+      renderPinDots();
+      shakeDots();
+      showPinErr('PIN sa nezhoduje, skúste znova');
+      pinState.mode = (mode==='set2') ? 'set1' : 'change1';
+      setPinTitle((mode==='set2') ? 'Nastavte nový PIN' : 'Nový PIN', '4-miestny kód');
+    }
+    return;
+  }
+}
+
+document.querySelectorAll('#keypad .keybtn').forEach(function(b){
+  b.addEventListener('click', function(){
+    var k = b.getAttribute('data-k');
+    if(k) pinPress(k);
+  });
+});
+
+document.getElementById('btnPinCancel').onclick = function(){
+  var cb = pinState.onCancel;
+  pinState.onCancel = null;
+  pinState.onSuccess = null;
+  if(cb) cb(); else go('smain');
+};
+
+// ===== Nastavenia =====
+function openSettings(){
+  var s=cfg();
+  document.getElementById('sIban').value=s.iban||'';
+  document.getElementById('sName').value=s.name||'';
+  document.getElementById('sBic').value=s.bic||'';
+  document.getElementById('sVs').value=s.vs||'';
+  document.getElementById('sKs').value=s.ks||'';
+  document.getElementById('sLock').checked = pinEnabled();
+  document.getElementById('rowChangePin').style.display = pinEnabled() ? 'flex' : 'none';
+  go('sset');
+}
+
+document.getElementById('btnSet').onclick=function(){
+  if(pinEnabled()){
+    openPin('unlock', {
+      onSuccess: function(){ openSettings(); },
+      onCancel: function(){ go('smain'); }
+    });
+  } else {
+    openSettings();
+  }
+};
+document.getElementById('btnBack').onclick=function(){go('smain');};
+
+function doSave(){
+  var iban=document.getElementById('sIban').value.replace(/\s/g,'').toUpperCase();
+  if(!iban){toast('Zadajte IBAN');return;}
+  if(iban.length<15){toast('IBAN je príliš krátky');return;}
+  saveCfg({
+    iban:iban,
+    name:document.getElementById('sName').value.trim(),
+    bic:document.getElementById('sBic').value.trim().toUpperCase(),
+    vs:document.getElementById('sVs').value.trim(),
+    ks:document.getElementById('sKs').value.trim()
+  });
+  toast('Uložené ✓');
+  setTimeout(function(){go('smain');refreshPill();},600);
+}
+document.getElementById('btnSave1').onclick=doSave;
+document.getElementById('btnSave2').onclick=doSave;
+
+// Prepínač zámku
+document.getElementById('sLock').addEventListener('change', function(){
+  if(this.checked){
+    openPin('set1', {
+      onSuccess: function(){
+        document.getElementById('rowChangePin').style.display = 'flex';
+        toast('PIN nastavený ✓');
+        go('sset');
+      },
+      onCancel: function(){
+        document.getElementById('sLock').checked = false;
+        document.getElementById('rowChangePin').style.display = 'none';
+        go('sset');
+      }
+    });
+  } else {
+    openPin('verify', {
+      onSuccess: function(){
+        savePinCfg(null);
+        document.getElementById('rowChangePin').style.display = 'none';
+        toast('Zámok vypnutý');
+        go('sset');
+      },
+      onCancel: function(){
+        document.getElementById('sLock').checked = true;
+        go('sset');
+      }
+    });
+  }
+});
+
+// Zmena PIN-u
+document.getElementById('rowChangePin').onclick = function(){
+  openPin('verify', {
+    onSuccess: function(){
+      pinState.mode = 'change1';
+      pinState.buf = '';
+      pinState.step1 = '';
+      pinState.onSuccess = function(){
+        toast('PIN zmenený ✓');
+        go('sset');
+      };
+      pinState.onCancel = function(){ go('sset'); };
+      setPinTitle('Nový PIN', '4-miestny kód');
+      renderPinDots();
+    },
+    onCancel: function(){ go('sset'); }
+  });
+};
+
+// ===== QR generovanie =====
+document.getElementById('btnGen').onclick=function(){
+  var s=cfg();
+  if(!s.iban){toast('Najprv nastavte účet');return;}
+  var amt=document.getElementById('iAmt').value;
+  if(!amt||parseFloat(amt)<=0){toast('Zadajte sumu');return;}
+  var note=document.getElementById('iNote').value.trim();
+
+  var btn=document.getElementById('btnGen');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin"></span>Generujem…';
+
+  var params=new URLSearchParams();
+  params.set('iban', s.iban);
+  params.set('amount', parseFloat(amt).toFixed(2));
+  if(s.vs) params.set('vs', s.vs);
+  if(s.ks) params.set('ks', s.ks);
+  if(note) params.set('note', note);
+  if(s.bic) params.set('bic', s.bic);
+  if(s.name) params.set('name', s.name);
+
+  fetch(WORKER_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: params.toString()
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    btn.disabled=false; btn.textContent='Generovať QR kód';
+    if(d.error){toast('Chyba: '+d.error);return;}
+    if(!d.src){toast('Nepodarilo sa získať QR kód');return;}
+    document.getElementById('qrimg').src=d.src;
+    document.getElementById('qramt').textContent=parseFloat(amt).toFixed(2)+' €';
+    document.getElementById('qrnote').textContent=note;
+    document.getElementById('qrarea').style.display='block';
+    setTimeout(function(){
+      document.getElementById('qrarea').scrollIntoView({behavior:'smooth',block:'start'});
+    },100);
+  })
+  .catch(function(e){
+    btn.disabled=false; btn.textContent='Generovať QR kód';
+    toast('Chyba: '+e.message);
+  });
+};
+
+refreshPill();
+</script>
+</body>
+</html>
